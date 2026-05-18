@@ -1,0 +1,21 @@
+name: Trigger website rebuild
+
+# A push to main calls the Vercel deploy hook for lonely-binary/web,
+# so content changes here go live without touching the website repo.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Vercel deploy hook
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK secret is not set — see README."
+            exit 1
+          fi
+          curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+          echo "Triggered a rebuild of lonely-binary/web."

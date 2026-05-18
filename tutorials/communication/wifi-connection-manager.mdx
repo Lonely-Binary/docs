@@ -1,0 +1,88 @@
+---
+title: Wi-Fi Connection Manager
+slug: wifi-connection-manager
+category: communication
+order: 3
+level: beginner
+estimatedMinutes: 45
+authors: [hana]
+updated: 2026-05-10
+kit: lb-32-starter
+tags: [esp32, wifi, comm]
+seo:
+  description: Build a robust ESP32 Wi-Fi connection manager with fallback AP mode and captive-portal provisioning.
+---
+
+## Why a connection manager
+
+Hard-coding an SSID and password works on your bench and nowhere else. The
+moment the board moves — a new classroom, a customer's home, a different
+router — it goes dark. A **connection manager** fixes this: the board stores
+known credentials, reconnects automatically, and falls back to its own access
+point so you can hand it new credentials from a phone.
+
+<Callout variant="tip">
+Store credentials in NVS (non-volatile storage), never in the sketch. A flashed
+sketch is shared; Wi-Fi passwords should not be.
+</Callout>
+
+## The three states
+
+A reliable manager only ever sits in one of three states:
+
+- **Connected** — joined a known network, running the application.
+- **Connecting** — trying saved credentials, with a timeout.
+- **Provisioning** — no network reachable, so the board hosts a captive portal
+  AP named `LB-Setup` for the user to pick a network and enter a password.
+
+## Minimal sketch
+
+This skeleton connects with a timeout, then drops into AP mode if it fails:
+
+```cpp
+#include <WiFi.h>
+#include <Preferences.h>
+
+Preferences prefs;
+
+bool connectSaved(uint32_t timeoutMs) {
+  prefs.begin("wifi", true);
+  String ssid = prefs.getString("ssid", "");
+  String pass = prefs.getString("pass", "");
+  prefs.end();
+  if (ssid.isEmpty()) return false;
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+
+  uint32_t start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    if (millis() - start > timeoutMs) return false;
+    delay(200);
+  }
+  return true;
+}
+
+void startPortal() {
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP("LB-Setup");
+  // serve a form on 192.168.4.1, write submitted creds to prefs
+}
+
+void setup() {
+  Serial.begin(115200);
+  if (!connectSaved(8000)) startPortal();
+}
+
+void loop() {}
+```
+
+<Callout variant="warn">
+Always set a timeout. Without one, `WiFi.begin()` will block forever on a bad
+password and the board will look bricked.
+</Callout>
+
+## Where to go next
+
+Pair this with mDNS so the board is reachable at `lb-board.local`, and add an
+OTA endpoint so you never need the USB cable again.
