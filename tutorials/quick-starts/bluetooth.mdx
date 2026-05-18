@@ -1,0 +1,271 @@
+---
+title: ESP32 Bluetooth — Quick Start
+slug: bluetooth
+category: quick-starts
+parent: communication
+order: 2
+level: beginner
+estimatedMinutes: 6
+authors: [aanya, owen]
+updated: 2026-05-14
+kit: lb-32-starter
+tags: [esp32, bluetooth, classic-bt, ble, arduino]
+headline: ESP32 Bluetooth.
+headlineAccent: From box to first message.
+eyebrow: Quick Start · 5 steps · ~6 minutes
+deck: Pair your phone with an ESP32, send "hello" both ways, and understand exactly what every line of code does. Each step takes under a minute. No fluff.
+metaTags: [Beginner, 5 modules, Arduino IDE, Any ESP32]
+seo:
+  description: Pair an ESP32 over Bluetooth, send your first byte, see the LED toggle. 6 minutes, 5 cards.
+---
+
+<QuickStartGrid storageKey="bt-quickstart">
+
+<Step n="01" time="~ 45 sec" title="Plug in your board">
+
+USB-C to your laptop. Confirm the on-board LED breathes.
+
+</Step>
+
+<Step n="02" time="~ 60 sec" title="Select board & port">
+
+Arduino IDE → Tools → *ESP32 Dev Module*, port shows up.
+
+</Step>
+
+<Step n="03" time="~ 30 sec" title="Paste the sketch">
+
+Copy our 24-line example from Module 02. Hit upload.
+
+</Step>
+
+<Step n="04" time="~ 90 sec" title="Pair from your phone">
+
+Open BT settings, tap *LB-ESP32*, accept the prompt.
+
+</Step>
+
+<Step n="05" time="~ 60 sec" title="Send your first byte">
+
+Type "hello" in our terminal app. Watch the LED toggle.
+
+</Step>
+
+</QuickStartGrid>
+
+<Modules>
+
+<Module n="01" title="Hardware & wiring" est="~ 1 min · interactive pinout">
+
+Bluetooth lives **inside the ESP32** — no external module needed. For this quick start, the only "wiring" is plugging in USB. Hover any pin in the diagram to see what it does. The four pins we'll touch later are highlighted in purple.
+
+<Pinout />
+
+<VideoGrid>
+  <Video title="Unboxing the LB-32 board" caption="What's inside the kit · 48 sec" duration="0:48" />
+  <Gif title="Plugging in & LED check" caption="10-second loop · GIF" />
+</VideoGrid>
+
+</Module>
+
+<Module n="02" title="Code example" est="~ 90 sec · 3 frameworks">
+
+Same sketch, three ways. Pick the framework you're already in. We've tested all three on the LB-32 board — none need extra libraries.
+
+<CodeTabs>
+
+<CodeBlock id="arduino" tab="sketch.ino" ext="· Arduino" file="sketch.ino · 24 lines" lang="cpp" downloadName="sketch.ino" downloadLabel="Download .ino">
+
+```cpp
+// sketch.ino  — pair, then toggle the LED on incoming bytes
+#include <BluetoothSerial.h>
+
+BluetoothSerial BT;
+const int LED = 2;
+
+void setup() {
+  pinMode(LED, OUTPUT);
+  Serial.begin(115200);
+  BT.begin("LB-ESP32");   // device name your phone sees
+  Serial.println("Ready. Pair with LB-ESP32 from your phone.");
+}
+
+void loop() {
+  if (BT.available()) {
+    char c = BT.read();
+    digitalWrite(LED, !digitalRead(LED));
+    BT.printf("got %c (0x%02X)\n", c, c);
+    Serial.printf("phone → board: %c\n", c);
+  }
+}
+```
+
+</CodeBlock>
+
+<CodeBlock id="pio" tab="main.cpp" ext="· PlatformIO" file="main.cpp · PlatformIO" lang="cpp" downloadName="main.cpp" downloadLabel="Download project">
+
+```cpp
+// platformio.ini → board = esp32dev, framework = arduino
+#include <Arduino.h>
+#include <BluetoothSerial.h>
+
+BluetoothSerial BT;
+constexpr int LED = 2;
+
+void setup() {
+  pinMode(LED, OUTPUT);
+  Serial.begin(115200);
+  BT.begin("LB-ESP32");
+}
+
+void loop() {
+  if (BT.available()) {
+    char c = BT.read();
+    digitalWrite(LED, !digitalRead(LED));
+    BT.printf("got %c\n", c);
+  }
+}
+```
+
+</CodeBlock>
+
+<CodeBlock id="mpy" tab="main.py" ext="· MicroPython" file="main.py · MicroPython · BLE" lang="python" downloadName="main.py" downloadLabel="Download .py">
+
+```python
+# main.py — BLE peripheral version (Classic BT isn't on MicroPython)
+import bluetooth, machine, time
+from machine import Pin
+
+led = Pin(2, Pin.OUT)
+ble = bluetooth.BLE()
+ble.active(True)
+
+def on_event(event, data):
+    if event == 3:            # _IRQ_GATTS_WRITE
+        led.value(not led.value())
+
+ble.irq(on_event)
+print("Advertising as LB-ESP32 · open nRF Connect to talk to it")
+```
+
+</CodeBlock>
+
+</CodeTabs>
+
+The whole sketch is **24 lines**. Three of them name your device, define the LED pin, and start Bluetooth. The loop just toggles the LED on every incoming byte.
+
+</Module>
+
+<Module n="03" title="Bluetooth init & pairing" est="~ 90 sec · 4-stage flow">
+
+Pairing is four phases. The active phase advances every few seconds — or tap a card to focus it.
+
+<PairingFlow autoAdvance interval={3500}>
+
+<Phase n="01" title="BT.begin()" anim="advertise">
+
+ESP32 turns on the BT radio and starts advertising as `LB-ESP32`.
+
+</Phase>
+
+<Phase n="02" title="Phone scans" anim="scan">
+
+Your phone listens for advertisements. Yours pops up under "Available devices".
+
+</Phase>
+
+<Phase n="03" title="Pair & bond" anim="bond">
+
+Tap the device. Confirm the pairing prompt. A bond key is stored on both sides.
+
+</Phase>
+
+<Phase n="04" title="Channel open" anim="duplex">
+
+Bytes can flow both ways. `BT.available()` returns true on the ESP32.
+
+</Phase>
+
+</PairingFlow>
+
+</Module>
+
+<Module n="04" title="Send your first message" est="~ 60 sec · simulated">
+
+Tap **Run example** below to watch what the serial monitor will show when a phone sends "hello". Real boards: open **nRF Connect** (iOS / Android), connect to `LB-ESP32`, type and send.
+
+<LiveTerminal
+  title="Serial Monitor · 115200 baud"
+  script={[
+    { delay: 100, tone: "gray", text: "> Booting ESP32…" },
+    { delay: 600, tone: "blue", text: '[BT] BluetoothSerial started as "LB-ESP32"' },
+    { delay: 500, tone: "gray", text: "> Ready. Pair with LB-ESP32 from your phone." },
+    { delay: 900, tone: "yel", text: "[BT] Pair request from 5C:A4:8A:B2:09:E1", phone: "pair" },
+    { delay: 600, tone: "green", text: "[BT] Bonded. Channel open." },
+    { delay: 800, tone: "gray", text: "> phone → board: h" },
+    { delay: 80, tone: "gray", text: "> phone → board: e" },
+    { delay: 80, tone: "gray", text: "> phone → board: l" },
+    { delay: 80, tone: "gray", text: "> phone → board: l" },
+    { delay: 80, tone: "gray", text: "> phone → board: o" },
+    { delay: 200, tone: "pink", text: "[LED] toggled 5×  · pin 2 = LOW" },
+    { delay: 600, tone: "green", text: "> Done. Try sending another word." },
+  ]}
+  devices={[
+    { name: "LB-ESP32", mac: "3C:71:BF:08:1A:24", state: "available" },
+    { name: "Office printer", mac: "5C:30:9E:21:7B:02", state: "saved" },
+  ]}
+/>
+
+</Module>
+
+<Module n="05" title="Common issues" est="~ 45 sec · 5 fixes">
+
+The five things that trip up 90% of beginners. Each one is a one-line fix.
+
+<Troubleshoot>
+
+<Fix title="LB-ESP32 doesn't show up in my phone's BT list">
+
+Your sketch needs `BT.begin("LB-ESP32")` in `setup()`. If it's there, the radio may be busy: power-cycle the board and turn BT off/on on your phone. iOS sometimes caches old devices — "Forget Device" and re-scan.
+
+</Fix>
+
+<Fix title="Pairs, but nothing happens when I send data">
+
+Most phone BT chat apps default to BLE — but Classic BT and BLE are different protocols. Either install **Serial Bluetooth Terminal** (Android) which speaks Classic, or switch your sketch to `BLEDevice::createServer()` (BLE example in the docs).
+
+</Fix>
+
+<Fix title={<>Compile fails: <code>BluetoothSerial.h: No such file</code></>}>
+
+You picked an ESP32 variant that doesn't have Classic BT (e.g. ESP32-S2). Switch the board to `ESP32 Dev Module` in Tools, or use the BLE version of the sketch — S2/S3 boards only support BLE.
+
+</Fix>
+
+<Fix title="Sketch flashes but board keeps rebooting">
+
+Partition table is too small. Tools → Partition Scheme → **Huge APP (3MB No OTA / 1MB SPIFFS)**. Classic BT brings in a fat stack and the default partition won't fit.
+
+</Fix>
+
+<Fix title="Pairing succeeds but disconnects after a few seconds">
+
+Likely under-powered USB. Cheap hubs can't deliver 500 mA during BT bursts. Try a different cable, plug straight into the laptop, or power the board from an external 5V supply.
+
+</Fix>
+
+</Troubleshoot>
+
+<NextSteps
+  message="Nice work. You've shipped Bluetooth."
+  primary={{ label: "Next · ESP-NOW", href: "/tutorials/esp-now" }}
+  secondary={{ label: "Browse tutorials", href: "/tutorials" }}
+>
+
+Next up: send sensor data instead of bytes, or jump to [ESP-NOW](/tutorials/esp-now) for board-to-board comms.
+
+</NextSteps>
+
+</Module>
+
+</Modules>
